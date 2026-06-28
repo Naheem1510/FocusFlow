@@ -46,9 +46,9 @@ export function Tasks() {
         </div>
         <button
           onClick={() => setEditing({ column: "todo" })}
-          className="hidden items-center gap-2 rounded-DEFAULT bg-accent-primary px-4 py-2.5 text-sm font-medium text-text-parchment transition-colors hover:bg-accent-hover active:scale-[0.97] md:flex"
+          className="flex flex-shrink-0 items-center gap-2 rounded-DEFAULT bg-accent-primary px-3 py-2 text-sm font-medium text-text-parchment transition-colors hover:bg-accent-hover active:scale-[0.97] md:px-4 md:py-2.5"
         >
-          <Plus size={18} strokeWidth={1.75} /> New Task
+          <Plus size={18} strokeWidth={1.75} /> <span className="hidden sm:inline">New Task</span>
         </button>
       </div>
 

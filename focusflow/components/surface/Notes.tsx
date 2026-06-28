@@ -11,6 +11,7 @@ import {
   X,
   Trash2,
   ChevronRight,
+  ChevronLeft,
   CornerDownRight,
   FilePlus,
   List,
@@ -81,9 +82,17 @@ export function Notes() {
   const [tagInput, setTagInput] = useState("");
   const [view, setView] = useState<NotesView>("list");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["n-seed-1"]));
+  // On phones the list and editor are separate panes; this tracks which is shown.
+  const [mobilePane, setMobilePane] = useState<"list" | "editor">("list");
 
   const active = notes.find((n) => n.id === activeId) ?? null;
   const isSearching = query.trim().length > 0;
+
+  // Open a note and, on mobile, switch to the editor pane.
+  const openNote = (id: string) => {
+    setActive(id);
+    setMobilePane("editor");
+  };
 
   const inFolder = (n: Note) => folder === "All Notes" || n.folder === folder;
   const matchesQuery = (n: Note) =>
@@ -108,6 +117,7 @@ export function Notes() {
   const addSubNote = (parentId: string) => {
     createNote(undefined, parentId);
     setExpanded((prev) => new Set(prev).add(parentId));
+    setMobilePane("editor");
   };
 
   const handleDelete = (note: Note) => {
@@ -142,7 +152,7 @@ export function Notes() {
         <NotesGraph
           className="min-h-0 flex-1"
           onOpenNote={(id) => {
-            setActive(id);
+            openNote(id);
             setView("list");
           }}
         />
@@ -152,15 +162,23 @@ export function Notes() {
 
   return (
     <div className="flex h-full">
-      {/* List pane */}
-      <div className="flex w-full flex-col border-r border-border-ash md:w-[320px] md:flex-shrink-0">
+      {/* List pane — full width on mobile; hidden there once a note is open. */}
+      <div
+        className={cn(
+          "w-full flex-col border-r border-border-ash md:flex md:w-[320px] md:flex-shrink-0",
+          mobilePane === "editor" ? "hidden md:flex" : "flex",
+        )}
+      >
         <div className="border-b border-border-ash p-4 md:p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
             <h1 className="font-display text-2xl font-semibold text-text-parchment">Notes</h1>
             <div className="flex items-center gap-2">
               <ViewToggle value={view} onChange={setView} />
               <button
-                onClick={() => createNote(folder === "All Notes" ? "Workshop" : folder)}
+                onClick={() => {
+                  createNote(folder === "All Notes" ? "Workshop" : folder);
+                  setMobilePane("editor");
+                }}
                 className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-DEFAULT bg-accent-primary text-text-parchment transition-colors hover:bg-accent-hover active:scale-95"
                 title="New note"
               >
@@ -205,7 +223,7 @@ export function Notes() {
               {searchResults.map((n) => (
                 <button
                   key={n.id}
-                  onClick={() => setActive(n.id)}
+                  onClick={() => openNote(n.id)}
                   className={cn(
                     "block w-full border-b border-border-ash border-l-2 px-4 py-3 text-left transition-colors",
                     n.id === activeId
@@ -238,7 +256,7 @@ export function Notes() {
                     notes={notes}
                     activeId={activeId}
                     expanded={expanded}
-                    onSelect={setActive}
+                    onSelect={openNote}
                     onToggle={toggleExpand}
                     onAddChild={addSubNote}
                   />
@@ -255,9 +273,19 @@ export function Notes() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="custom-scrollbar hidden flex-1 overflow-y-auto md:block"
+          className={cn(
+            "custom-scrollbar flex-1 overflow-y-auto md:block",
+            mobilePane === "editor" ? "block" : "hidden md:block",
+          )}
         >
-          <div className="mx-auto max-w-3xl px-10 py-10">
+          {/* Mobile-only back to the note list */}
+          <button
+            onClick={() => setMobilePane("list")}
+            className="flex items-center gap-1 px-4 pt-4 text-sm text-text-bone transition-colors hover:text-accent-primary md:hidden"
+          >
+            <ChevronLeft size={16} /> Notes
+          </button>
+          <div className="mx-auto max-w-3xl px-5 py-6 md:px-10 md:py-10">
             {/* Breadcrumb path through the nesting */}
             {notePath(notes, active.id).length > 1 && (
               <div className="mb-3 flex flex-wrap items-center gap-1 font-mono text-[11px] text-text-bone">

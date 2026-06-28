@@ -24,6 +24,8 @@ import {
   Bookmark,
   Pencil,
   Trash2,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { useVaultStore } from "@/store/useVaultStore";
@@ -168,7 +170,12 @@ function VaultInner() {
 
   return (
     <div className="vault-glass flex h-full flex-col bg-background-base text-text-parchment">
-      <VaultHeader search={search} setSearch={setSearch} searchable={inRoom} />
+      <VaultHeader
+        search={search}
+        setSearch={setSearch}
+        searchable={inRoom}
+        onOpenLobby={() => setLobbyOpen(true)}
+      />
       <OfflineNotice />
 
       {!inRoom ? (
@@ -308,11 +315,14 @@ function VaultHeader({
   search,
   setSearch,
   searchable,
+  onOpenLobby,
 }: {
   search: string;
   setSearch: (v: string) => void;
   searchable: boolean;
+  onOpenLobby: () => void;
 }) {
+  const exitVault = useAppStore((s) => s.exitVault);
   const active = useActiveSession();
   const inRoom = active !== null;
   const connectionState = active?.connectionState ?? "disconnected";
@@ -360,11 +370,28 @@ function VaultHeader({
           </div>
         )}
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         <div className={cn("flex items-center gap-1.5 font-mono text-[11px] tracking-wide", status.cls)}>
           <Icon size={14} className={status.spin ? "animate-spin" : ""} />
-          {status.label}
+          <span className="hidden sm:inline">{status.label}</span>
         </div>
+        {/* Mobile-only room manager + exit (the sidebar/exit button are desktop-only). */}
+        <button
+          onClick={onOpenLobby}
+          title="Rooms"
+          aria-label="Rooms"
+          className="grid h-8 w-8 place-items-center rounded-DEFAULT text-text-bone transition-colors hover:text-accent-primary md:hidden"
+        >
+          <Menu size={18} />
+        </button>
+        <button
+          onClick={exitVault}
+          title="Exit Vault"
+          aria-label="Exit Vault"
+          className="grid h-8 w-8 place-items-center rounded-DEFAULT text-text-bone transition-colors hover:text-accent-primary md:hidden"
+        >
+          <X size={18} />
+        </button>
       </div>
     </header>
   );

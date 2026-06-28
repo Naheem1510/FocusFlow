@@ -77,14 +77,14 @@ export function CalendarView() {
         </div>
       </div>
 
-      <div className="flex flex-1 gap-5 overflow-hidden">
-        <div className="flex flex-1 flex-col rounded-xl border border-border-ash bg-background-secondary/40 p-3">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto lg:flex-row lg:overflow-hidden">
+        <div className="flex flex-col rounded-xl border border-border-ash bg-background-secondary/40 p-3 lg:flex-1">
           <div className="grid grid-cols-7 border-b border-border-ash pb-2">
             {DOW.map((d) => (
               <div key={d} className="text-center font-mono text-[11px] uppercase tracking-wider text-text-bone">{d}</div>
             ))}
           </div>
-          <div className="custom-scrollbar grid flex-1 grid-cols-7 gap-px overflow-y-auto">
+          <div className="custom-scrollbar grid grid-cols-7 gap-px lg:flex-1 lg:overflow-y-auto">
             {cells.map((iso, i) => {
               if (iso === null) return <div key={`b${i}`} />;
               const dayEvents = eventsOn(iso);
@@ -97,7 +97,7 @@ export function CalendarView() {
                   onClick={() => setSelected(iso)}
                   onDoubleClick={() => setEditing({ date: iso })}
                   className={cn(
-                    "flex min-h-[84px] flex-col gap-1 rounded p-1.5 text-left transition-colors",
+                    "flex min-h-[64px] flex-col gap-1 rounded p-1.5 text-left transition-colors md:min-h-[84px]",
                     isSelected ? "bg-background-tertiary ring-1 ring-accent-primary" : "hover:bg-background-tertiary/50",
                   )}
                 >
@@ -126,7 +126,7 @@ export function CalendarView() {
           initial={{ opacity: 0, x: 12 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.25 }}
-          className="hidden w-72 flex-col rounded-xl border border-border-ash bg-background-secondary p-5 lg:flex"
+          className="flex w-full flex-shrink-0 flex-col rounded-xl border border-border-ash bg-background-secondary p-5 lg:w-72"
         >
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-xl font-medium text-text-parchment">
@@ -139,7 +139,7 @@ export function CalendarView() {
               <Plus size={16} />
             </button>
           </div>
-          <div className="custom-scrollbar flex-1 space-y-3 overflow-y-auto">
+          <div className="custom-scrollbar space-y-3 lg:flex-1 lg:overflow-y-auto">
             {selectedEvents.length === 0 && (
               <p className="font-mono text-xs text-text-stone">No events. Tap + or double-click a day.</p>
             )}
