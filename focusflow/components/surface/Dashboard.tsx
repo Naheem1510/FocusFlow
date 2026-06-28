@@ -71,7 +71,7 @@ export function Dashboard() {
       >
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-text-parchment md:text-5xl">
-            {greeting}, {profileName}
+            {greeting}, {profileName || "there"}
           </h1>
           <p className="mt-2 text-text-bone md:text-lg">Let&apos;s set your intentions for today.</p>
         </div>

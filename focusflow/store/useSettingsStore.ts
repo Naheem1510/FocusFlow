@@ -36,7 +36,7 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      profileName: "Alex",
+      profileName: "",
       plan: "Pro Plan",
       accent: "terracotta",
       requireVaultPin: false,

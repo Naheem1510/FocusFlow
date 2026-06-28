@@ -65,11 +65,13 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="mb-6 flex items-center gap-3 border-b border-border-ash px-2 pb-6">
         <div className="grid h-10 w-10 place-items-center rounded-full bg-background-tertiary ring-1 ring-border-ash">
           <span className="font-display text-sm text-text-parchment">
-            {profileName.charAt(0).toUpperCase() || "F"}
+            {(profileName || "You").charAt(0).toUpperCase()}
           </span>
         </div>
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-text-parchment">{profileName}</div>
+          <div className="truncate text-sm font-medium text-text-parchment">
+            {profileName || "Set your name"}
+          </div>
           <div className="font-mono text-[11px] tracking-wide text-text-bone">{plan}</div>
         </div>
       </div>

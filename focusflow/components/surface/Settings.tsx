@@ -192,16 +192,22 @@ function Toggle({
         <p className="mt-1 text-xs leading-relaxed text-text-bone">{desc}</p>
       </div>
       <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative h-6 w-11 flex-shrink-0 rounded-full transition-colors",
-          checked ? "bg-accent-primary" : "bg-background-tertiary border border-border-ash",
+          // ring-inset (not border) keeps the box the same size in both states,
+          // so the knob doesn't jump when toggled.
+          "relative h-6 w-11 flex-shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background-secondary",
+          checked ? "bg-accent-primary" : "bg-background-tertiary ring-1 ring-inset ring-border-ash",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 h-5 w-5 rounded-full bg-text-parchment transition-transform",
-            checked ? "translate-x-[22px]" : "translate-x-0.5",
+            "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-text-parchment shadow-sm transition-transform duration-200",
+            checked ? "translate-x-5" : "translate-x-0",
           )}
         />
       </button>

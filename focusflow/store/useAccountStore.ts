@@ -33,6 +33,16 @@ import {
   loadRememberedSession,
   clearRememberedSession,
 } from "@/lib/sync/remember";
+import { useSettingsStore } from "@/store/useSettingsStore";
+
+/** A friendly default display name from an email's local part, e.g.
+ *  "naheem.tanny69@x.com" → "Naheem". Falls back to "there". */
+function deriveDisplayName(email: string): string {
+  const local = (email.split("@")[0] || "").trim();
+  const token = local.split(/[._+\-\d]+/).filter(Boolean)[0] || local;
+  if (!token) return "there";
+  return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+}
 
 export type SyncStatus = "off" | "unlocked" | "syncing" | "error";
 
@@ -141,6 +151,10 @@ export const useAccountStore = create<AccountState>()(
               set({ busy: false, error: "That account already exists — sign in instead." });
               return false;
             }
+            // Personalize the display name from the email (only if not already set),
+            // before the snapshot is captured so it syncs with the new account.
+            const settings = useSettingsStore.getState();
+            if (!settings.profileName.trim()) settings.setProfileName(deriveDisplayName(id));
             // Envelope: random DEK, wrapped by both the passphrase and a recovery key.
             const salt = randomSaltB64();
             keys = await deriveAccountKeys(passphrase, salt);
