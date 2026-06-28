@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Surface (productivity) theme — Burnt Terracotta accent on Warm Charcoal.
+     The surface accent is indirected through --surface-accent* so Settings can
+     re-theme it without overriding the Vault's accent (which is set directly
+     below and therefore always wins in vault mode). */
+  --surface-accent: #c4654a;
+  --surface-accent-hover: #a8503a;
+  --surface-accent-soft: rgba(196, 101, 74, 0.15);
+  --bg-base: #1e1b18;
+  --accent-primary: var(--surface-accent);
+  --accent-hover: var(--surface-accent-hover);
+  --accent-soft: var(--surface-accent-soft);
+}
+
+/* Vault (covert) theme — Electric Teal accent on Deep Obsidian.
+   Driven by a single attribute on <html> so the whole app crossfades. */
+html[data-vault="true"] {
+  --bg-base: #141210;
+  --accent-primary: #38bec9;
+  --accent-hover: #2aa3ad;
+  --accent-soft: rgba(56, 190, 201, 0.12);
+}
+
+html {
+  /* 600ms seamless crossfade between surface and vault */
+  transition: background-color 600ms ease, color 600ms ease;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: #ede6db;
+  transition: background-color 600ms ease;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Keyboard focus — a clear accent ring, no ring on mouse/touch focus. */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Honour reduced-motion for CSS transitions/animations too
+   (framer-motion is handled separately via <MotionConfig>). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  html {
+    transition: none !important;
+  }
+}
+
+/* Tactile scrollbar — thin, ash-toned */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #3e3730;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #55423d;
+}
+
+/* Subtle shimmer used on progress bars */
+.shimmer-bar {
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(237, 230, 219, 0.25) 50%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+}
+
+/* Vault "security glass" — glassmorphism reserved for vault overlays */
+.vault-glass {
+  background: rgba(20, 18, 16, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Rich-text note editor — preflight strips these, so restore structure. */
+.rte {
+  white-space: pre-wrap; /* render legacy plain-text newlines too */
+  word-break: break-word;
+  outline: none;
+}
+.rte:empty::before {
+  content: attr(data-placeholder);
+  color: #6b6259;
+  pointer-events: none;
+}
+.rte h1 {
+  font-family: var(--font-fraunces), serif;
+  font-size: 1.9em;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0.6em 0 0.3em;
+}
+.rte h2 {
+  font-family: var(--font-fraunces), serif;
+  font-size: 1.45em;
+  font-weight: 500;
+  line-height: 1.25;
+  margin: 0.6em 0 0.3em;
+}
+.rte ul,
+.rte ol {
+  margin: 0.4em 0;
+  padding-left: 1.5em;
+}
+.rte ul {
+  list-style: disc;
+}
+.rte ol {
+  list-style: decimal;
+}
+.rte li {
+  margin: 0.15em 0;
+}
+.rte blockquote {
+  border-left: 3px solid var(--accent-primary);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: #dbc1ba;
+  font-style: italic;
+}
+.rte a {
+  color: var(--accent-primary);
+  text-decoration: underline;
+}
+.rte b,
+.rte strong {
+  font-weight: 700;
+}
+
+/* Print protection — the covert layer is never captured in print / PDF */
+@media print {
+  .vault-content,
+  .f-23 {
+    display: none !important;
+  }
+}

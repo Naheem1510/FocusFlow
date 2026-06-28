@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2563EB" />
+  <meta name="description" content="Professional productivity and project management workspace." />
+  <meta name="robots" content="noindex" />
+
+  <title>Workspace Dashboard</title>
+
+  <link rel="icon" href="/assets/favicon.ico" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/css/reset.css" />
+  <link rel="stylesheet" href="/css/theme.css" />
+  <link rel="stylesheet" href="/css/dashboard.css" />
+  <link rel="stylesheet" href="/css/chat.css" />
+  <link rel="stylesheet" href="/css/pin.css" />
+  <link rel="stylesheet" href="/css/animations.css" />
+
+  <!-- QR code library (in-browser only) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+
+  <!-- Worker URL injected at deploy time; fallback for local dev -->
+  <script>
+    window.__WORKER_URL__ = window.location.hostname === 'localhost'
+      ? 'http://localhost:8787'
+      : 'https://secure-workspace.your-worker.workers.dev';
+    window.__APP_DOMAIN__ = window.location.origin;
+  </script>
+</head>
+<body class="dashboard-visible">
+
+  <!-- ════════════════════════════════════════════════════════
+       DASHBOARD SHELL (visible by default)
+  ════════════════════════════════════════════════════════ -->
+  <div class="dashboard-container app-shell">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar__logo" id="audit-logo" tabindex="0" role="button" aria-label="Workspace Dashboard">
+        <div class="topbar__logo-icon">W</div>
+        <span>Workspace</span>
+      </div>
+
+      <nav class="topbar__nav" aria-label="Main navigation">
+        <a href="/projects" class="topbar__nav-link">Projects</a>
+        <a href="/" class="topbar__nav-link topbar__nav-link--active">Dashboard</a>
+      </nav>
+
+      <div class="topbar__spacer"></div>
+
+      <div class="topbar__actions">
+        <!-- Theme toggle -->
+        <button id="theme-toggle" class="topbar__btn" aria-label="Toggle dark mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+
+        <!-- Lock / PIN button -->
+        <button id="lock-btn" class="topbar__btn" aria-label="Lock workspace">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </button>
+
+        <!-- Settings icon (doubles as hidden panic trigger) -->
+        <button id="settings-btn" class="topbar__btn" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+
+        <!-- New Workspace = Create Room (disguised) -->
+        <button id="open-room-modal-btn" class="new-workspace-btn" aria-label="Create new workspace">
+          + New Workspace
+        </button>
+      </div>
+    </header>
+
+    <!-- Main layout -->
+    <div class="main-layout">
+
+      <!-- Left sidebar -->
+      <aside class="sidebar" aria-label="Sidebar navigation">
+        <div class="sidebar-section">
+          <p class="sidebar-section__title">Navigation</p>
+          <button class="sidebar-nav-item sidebar-nav-item--active">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Overview
+          </button>
+          <button class="sidebar-nav-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            Projects
+          </button>
+          <button class="sidebar-nav-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Tasks
+          </button>
+          <button class="sidebar-nav-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Calendar
+          </button>
+          <button class="sidebar-nav-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Reports
+          </button>
+        </div>
+
+        <div class="sidebar-divider" role="separator"></div>
+
+        <div class="sidebar-section">
+          <p class="sidebar-section__title">Team</p>
+          <div id="online-colleagues" aria-label="Online team members"></div>
+        </div>
+
+        <!-- Collaboration Stream access (disguised as a section) -->
+        <div class="sidebar-divider" role="separator"></div>
+        <div class="sidebar-section">
+          <p class="sidebar-section__title">Streams</p>
+          <div id="room-tabs-sidebar"></div>
+        </div>
+      </aside>
+
+      <!-- Main content area -->
+      <main class="main-content" id="main-content">
+        <div class="page-header">
+          <h1 class="page-header__title">Overview</h1>
+          <p class="page-header__subtitle">Welcome back. Here's what's happening today.</p>
+        </div>
+
+        <!-- Stats row -->
+        <div id="stats-row" role="region" aria-label="Key metrics"></div>
+
+        <!-- Projects section -->
+        <div class="section-header">
+          <h2 class="section-header__title">Active Projects</h2>
+          <button class="section-header__action">View all</button>
+        </div>
+        <div id="projects-grid" role="list" aria-label="Projects"></div>
+
+        <!-- Analytics chart -->
+        <div class="section-header">
+          <h2 class="section-header__title">Weekly Activity</h2>
+        </div>
+        <div class="chart-widget" role="img" aria-label="Weekly activity bar chart">
+          <div id="chart-bars"></div>
+        </div>
+      </main>
+
+      <!-- Right panel (activity feed) -->
+      <aside class="right-panel" aria-label="Recent activity">
+        <h2 class="right-panel__title">Recent Activity</h2>
+        <div id="activity-feed" role="feed" aria-label="Team activity feed"></div>
+      </aside>
+
+    </div><!-- /main-layout -->
+  </div><!-- /dashboard-container -->
+
+
+  <!-- ════════════════════════════════════════════════════════
+       CHAT SHELL (hidden by default, shown on room join)
+  ════════════════════════════════════════════════════════ -->
+  <div class="chat-container" aria-label="Collaboration Stream" aria-hidden="true">
+
+    <!-- Chat header -->
+    <header class="chat-header">
+      <button id="back-to-dashboard" class="chat-header__back" aria-label="Back to dashboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        Dashboard
+      </button>
+
+      <span class="chat-header__title" id="room-name">Collaboration Stream</span>
+
+      <span id="connection-badge" role="status" data-room-status="current" data-state="connecting" aria-live="polite">Connecting</span>
+
+      <div class="chat-header__fingerprint" tabindex="0" aria-describedby="fingerprint-tip">
+        <span class="fingerprint-label">Session ID:</span>
+        <span id="session-fingerprint" aria-label="Session fingerprint">--:--:--:--:--:--</span>
+        <div class="fingerprint-tooltip" role="tooltip" id="fingerprint-tip">
+          Compare this with your contact to verify the session is secure.
+        </div>
+      </div>
+    </header>
+
+    <!-- Room tab bar -->
+    <div id="room-tabs" role="tablist" aria-label="Open streams"></div>
+
+    <!-- Presence / expiry banner -->
+    <div id="chat-presence" aria-live="polite"></div>
+    <div id="room-expiry-banner" class="hidden" role="alert"></div>
+
+    <!-- Messages -->
+    <div id="chat-messages" role="log" aria-live="polite" aria-label="Stream messages"></div>
+
+    <!-- Typing indicator -->
+    <div id="typing-indicator" class="hidden" aria-live="polite" role="status"></div>
+
+    <!-- Input area -->
+    <footer class="chat-input-area">
+      <div class="chat-input-row">
+        <!-- File attachment -->
+        <label class="input-action-btn" aria-label="Attach file" tabindex="0">
+          <input id="file-input" type="file" class="sr-only" accept="*/*" aria-label="Choose file" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </label>
+
+        <!-- Voice note (hold to record) -->
+        <button id="voice-btn" class="input-action-btn" aria-label="Record voice memo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+
+        <textarea
+          id="message-input"
+          rows="1"
+          placeholder="Add to stream..."
+          aria-label="Message input"
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+
+        <div class="chat-input-btns">
+          <button id="send-btn" aria-label="Send message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+  </div><!-- /chat-container -->
+
+
+  <!-- ════════════════════════════════════════════════════════
+       PIN LOCK OVERLAY
+  ════════════════════════════════════════════════════════ -->
+  <div id="pin-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Workspace locked" data-pin-length="4" tabindex="-1">
+    <div class="pin-container">
+      <div class="pin-header">
+        <h2 class="pin-header__title">Workspace Locked</h2>
+        <p class="pin-header__subtitle">Enter your PIN to continue</p>
+      </div>
+
+      <div id="pin-dots" aria-label="PIN entry progress">
+        <span class="pin-dot" aria-hidden="true"></span>
+        <span class="pin-dot" aria-hidden="true"></span>
+        <span class="pin-dot" aria-hidden="true"></span>
+        <span class="pin-dot" aria-hidden="true"></span>
+      </div>
+
+      <p id="pin-message" role="status" aria-live="polite">Enter your PIN</p>
+
+      <div class="pin-numpad" role="group" aria-label="Numeric keypad">
+        <button class="pin-key" data-pin-digit="1" aria-label="1">1</button>
+        <button class="pin-key" data-pin-digit="2" aria-label="2">2</button>
+        <button class="pin-key" data-pin-digit="3" aria-label="3">3</button>
+        <button class="pin-key" data-pin-digit="4" aria-label="4">4</button>
+        <button class="pin-key" data-pin-digit="5" aria-label="5">5</button>
+        <button class="pin-key" data-pin-digit="6" aria-label="6">6</button>
+        <button class="pin-key" data-pin-digit="7" aria-label="7">7</button>
+        <button class="pin-key" data-pin-digit="8" aria-label="8">8</button>
+        <button class="pin-key" data-pin-digit="9" aria-label="9">9</button>
+        <button class="pin-key pin-key--empty" aria-hidden="true"></button>
+        <button class="pin-key" data-pin-digit="0" aria-label="0">0</button>
+        <button class="pin-key pin-key--backspace" data-pin-digit="backspace" aria-label="Backspace">⌫</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════
+       MODALS
+  ════════════════════════════════════════════════════════ -->
+
+  <!-- Share Workspace Access modal -->
+  <div id="share-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Share workspace access" tabindex="-1">
+    <div class="modal">
+      <h2 class="modal__title">Share Workspace Access</h2>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">
+        Share this link to invite a contact. The link grants one-time access.
+      </p>
+      <div id="share-qr-container" aria-label="Invite link QR code"></div>
+      <div class="form-group" style="margin-top:16px;">
+        <label class="form-label" for="share-link-input">Invite link</label>
+        <input id="share-link-input" class="form-input" type="text" readonly aria-label="Invite link" />
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--secondary" onclick="document.getElementById('share-modal').classList.add('hidden')">Close</button>
+        <button id="share-copy-btn" class="btn btn--primary">Copy link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Workspace modal -->
+  <div id="create-room-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Create new workspace" tabindex="-1">
+    <div class="modal">
+      <h2 class="modal__title">New Workspace</h2>
+      <div class="form-group">
+        <label class="form-label" for="room-nickname">Workspace name</label>
+        <input id="room-nickname" class="form-input" type="text" placeholder="e.g. Q4 Project" maxlength="40" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="invite-expiry">Invite expires</label>
+        <select id="invite-expiry" class="form-select">
+          <option value="1h">1 hour</option>
+          <option value="24h">24 hours</option>
+          <option value="7d" selected>7 days</option>
+          <option value="never">Never</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="msg-delete-mode">Auto-delete messages</label>
+        <select id="msg-delete-mode" class="form-select">
+          <option value="never">Never</option>
+          <option value="24h">After 24 hours</option>
+          <option value="7d" selected>After 7 days</option>
+          <option value="on_read">After reading</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="room-password">Room password (optional)</label>
+        <input id="room-password" class="form-input" type="password" placeholder="Leave blank for none" autocomplete="new-password" />
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+        <input id="one-time-invite" type="checkbox" style="width:16px;height:16px;" />
+        <label for="one-time-invite" class="form-label" style="margin:0;cursor:pointer;">Single-use invite link</label>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--secondary" onclick="document.getElementById('create-room-modal').classList.add('hidden')">Cancel</button>
+        <button id="create-room-btn" class="btn btn--primary">Create Workspace</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Room password entry modal -->
+  <div id="room-password-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Enter room password" tabindex="-1">
+    <div class="modal">
+      <h2 class="modal__title">Access Required</h2>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:16px;">This workspace requires a password.</p>
+      <div class="form-group">
+        <label class="form-label" for="room-password-input">Password</label>
+        <input id="room-password-input" class="form-input" type="password" autocomplete="current-password" />
+      </div>
+      <div class="modal__footer">
+        <button id="confirm-room-password" class="btn btn--primary">Join</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create PIN modal -->
+  <div id="create-pin-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Create PIN" tabindex="-1">
+    <div class="modal">
+      <h2 class="modal__title">Set Workspace PIN</h2>
+      <p class="pin-instructions">
+        Create a numeric PIN to quickly lock this workspace. When locked, it will show the dashboard until the correct PIN is entered.
+      </p>
+      <div class="form-group">
+        <label class="form-label" for="new-pin-input">PIN (4–6 digits)</label>
+        <input id="new-pin-input" class="form-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" />
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--secondary" onclick="document.getElementById('create-pin-modal').classList.add('hidden')">Cancel</button>
+        <button id="confirm-create-pin" class="btn btn--primary">Save PIN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit log modal (triple-click logo to reveal) -->
+  <div id="audit-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="System logs" tabindex="-1">
+    <div class="modal" style="max-width:560px;">
+      <h2 class="modal__title">System Logs</h2>
+      <div id="audit-list" style="max-height:360px;overflow-y:auto;"></div>
+      <div class="modal__footer">
+        <button class="btn btn--secondary" onclick="document.getElementById('audit-modal').classList.add('hidden')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- App JS (module) -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

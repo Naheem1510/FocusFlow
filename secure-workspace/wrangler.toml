@@ -1,0 +1,35 @@
+name = "secure-workspace"
+main = "worker/index.js"
+compatibility_date = "2024-01-01"
+
+# SQLite-backed Durable Object → eligible for the Workers FREE plan.
+# (Classic `new_classes` would require Workers Paid. Don't switch the type after
+#  the first deploy — it can't be converted once the class is live.)
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+# Create with:  wrangler kv namespace create WORKSPACE_KV
+#               wrangler kv namespace create WORKSPACE_KV --preview
+# then paste the returned IDs below.
+[[kv_namespaces]]
+binding = "WORKSPACE_KV"
+id = "your-kv-namespace-id"
+preview_id = "your-kv-preview-id"
+
+# Create with:  wrangler r2 bucket create workspace-files
+[[r2_buckets]]
+binding = "WORKSPACE_R2"
+bucket_name = "workspace-files"
+
+[vars]
+ENVIRONMENT = "production"
+MAX_ROOM_SIZE = "10"
+DEFAULT_MESSAGE_TTL = "604800"
+
+[triggers]
+crons = ["0 */6 * * *"]

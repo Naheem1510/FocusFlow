@@ -1,0 +1,16 @@
+{
+  "name": "secure-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"worker,frontend\" --prefix-colors \"cyan,green\" \"npm run dev:worker\" \"npm run dev:frontend\"",
+    "dev:worker": "wrangler dev --port 8787",
+    "dev:frontend": "serve frontend --listen 5500 --no-clipboard --single",
+    "deploy:worker": "wrangler deploy",
+    "deploy:frontend": "wrangler pages deploy frontend --project-name secure-workspace"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "serve": "^14.2.6"
+  }
+}
