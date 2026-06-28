@@ -18,10 +18,11 @@ new_sqlite_classes = ["Room"]
 # then paste the returned IDs below.
 [[kv_namespaces]]
 binding = "WORKSPACE_KV"
-id = "your-kv-namespace-id"
-preview_id = "your-kv-preview-id"
+id = "16801444a41940b49649e2553c5f4f87"
+preview_id = "16801444a41940b49649e2553c5f4f87"
 
-# Create with:  wrangler r2 bucket create workspace-files
+# R2 — for file/voice attachments. R2 is enabled on the account and the bucket is
+# auto-provisioned on deploy (referenced by name).
 [[r2_buckets]]
 binding = "WORKSPACE_R2"
 bucket_name = "workspace-files"

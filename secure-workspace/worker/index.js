@@ -332,6 +332,7 @@ async function handlePushSend(request, env) {
 }
 
 async function handleFileUpload(request, env, ip) {
+  if (!env.WORKSPACE_R2) return errorResponse('File uploads are not enabled', 501);
   const rl = await checkRateLimit(env.WORKSPACE_KV, ip, 'general');
   if (!rl.allowed) return errorResponse('Rate limit exceeded', 429);
 
@@ -358,6 +359,7 @@ async function handleFileUpload(request, env, ip) {
 }
 
 async function handleBlobDownload(request, env, blobId) {
+  if (!env.WORKSPACE_R2) return errorResponse('File downloads are not enabled', 501);
   const meta = await env.WORKSPACE_KV.get(`blob:${blobId}`);
   if (!meta) return errorResponse('Blob not found or expired', 404);
 
@@ -373,6 +375,7 @@ async function handleBlobDownload(request, env, blobId) {
 }
 
 async function cleanupExpiredBlobs(env) {
+  if (!env.WORKSPACE_R2) return; // attachments disabled — nothing to clean
   const list = await env.WORKSPACE_KV.list({ prefix: 'blob:' });
   const now = Date.now();
 
