@@ -16,6 +16,9 @@ import {
   Type,
   ChevronDown,
   Table as TableIcon,
+  Rows3,
+  Columns3,
+  Trash2,
 } from "lucide-react";
 import type { NoteFont, NoteSize } from "@/store/useNotesStore";
 import { cn } from "@/lib/cn";
@@ -55,6 +58,8 @@ export function RichTextEditor({
   onSizeChange: (s: NoteSize) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // True while the caret sits inside a table — reveals the row/column controls.
+  const [inTable, setInTable] = useState(false);
 
   // Load content only when the note changes — never on each keystroke, or the
   // caret would jump to the start.
@@ -63,7 +68,90 @@ export function RichTextEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
 
+  // Reveal the table controls only when the selection is inside a table cell.
+  useEffect(() => {
+    const onSel = () => {
+      const node = window.getSelection()?.anchorNode;
+      const el = node ? (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement) : null;
+      setInTable(!!el?.closest("td,th") && !!ref.current?.contains(el));
+    };
+    document.addEventListener("selectionchange", onSel);
+    return () => document.removeEventListener("selectionchange", onSel);
+  }, []);
+
   const save = () => onChange(ref.current?.innerHTML ?? "");
+
+  /** The table cell the caret is currently in, if any (within this editor). */
+  const currentCell = (): HTMLTableCellElement | null => {
+    const node = window.getSelection()?.anchorNode;
+    const el = node ? (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement) : null;
+    const cell = el?.closest("td,th") as HTMLTableCellElement | null;
+    return cell && ref.current?.contains(cell) ? cell : null;
+  };
+
+  // ── Table row/column editing — operate on the cell the caret is in ──────────
+  const addRow = () => {
+    const cell = currentCell();
+    if (!cell) return;
+    const row = cell.closest("tr")!;
+    const table = cell.closest("table")!;
+    const cols = Math.max(...Array.from(table.rows, (r) => r.cells.length));
+    const tr = document.createElement("tr");
+    for (let i = 0; i < cols; i++) {
+      const td = document.createElement("td");
+      td.innerHTML = "<br>";
+      tr.appendChild(td);
+    }
+    // A header row inserts a body row just beneath the header; otherwise after the row.
+    if (row.parentElement?.tagName === "THEAD") {
+      const tbody = table.tBodies[0] ?? table;
+      tbody.insertBefore(tr, tbody.firstChild);
+    } else {
+      row.parentElement!.insertBefore(tr, row.nextSibling);
+    }
+    placeCaret(tr.firstElementChild as HTMLElement);
+    save();
+  };
+
+  const addColumn = () => {
+    const cell = currentCell();
+    if (!cell) return;
+    const table = cell.closest("table")!;
+    const at = cell.cellIndex;
+    for (const row of Array.from(table.rows)) {
+      const isHead = row.parentElement?.tagName === "THEAD";
+      const nu = document.createElement(isHead ? "th" : "td");
+      nu.innerHTML = isHead ? "Column" : "<br>";
+      const refCell = row.cells[at];
+      row.insertBefore(nu, refCell ? refCell.nextSibling : null);
+    }
+    save();
+  };
+
+  const deleteRow = () => {
+    const cell = currentCell();
+    if (!cell) return;
+    const table = cell.closest("table")!;
+    cell.closest("tr")!.remove();
+    if (table.rows.length === 0) table.remove();
+    save();
+  };
+
+  const deleteColumn = () => {
+    const cell = currentCell();
+    if (!cell) return;
+    const table = cell.closest("table")!;
+    const at = cell.cellIndex;
+    for (const row of Array.from(table.rows)) if (row.cells[at]) row.deleteCell(at);
+    if (!table.rows[0] || table.rows[0].cells.length === 0) table.remove();
+    save();
+  };
+
+  const deleteTable = () => {
+    currentCell()?.closest("table")?.remove();
+    setInTable(false);
+    save();
+  };
 
   // Run a formatting command without letting the toolbar steal the selection.
   const exec = (cmd: string, value?: string) => {
@@ -124,6 +212,8 @@ export function RichTextEditor({
         onSizeChange={onSizeChange}
         exec={exec}
         onInsertTable={insertTable}
+        inTable={inTable}
+        tableOps={{ addRow, addColumn, deleteRow, deleteColumn, deleteTable }}
       />
       <div
         ref={ref}
@@ -153,6 +243,14 @@ function placeCaret(cell: HTMLElement) {
   (cell.closest("[contenteditable]") as HTMLElement | null)?.focus();
 }
 
+interface TableOps {
+  addRow: () => void;
+  addColumn: () => void;
+  deleteRow: () => void;
+  deleteColumn: () => void;
+  deleteTable: () => void;
+}
+
 function Toolbar({
   font,
   size,
@@ -160,6 +258,8 @@ function Toolbar({
   onSizeChange,
   exec,
   onInsertTable,
+  inTable,
+  tableOps,
 }: {
   font: NoteFont;
   size: NoteSize;
@@ -167,6 +267,8 @@ function Toolbar({
   onSizeChange: (s: NoteSize) => void;
   exec: (cmd: string, value?: string) => void;
   onInsertTable: (rows?: number, cols?: number) => void;
+  inTable: boolean;
+  tableOps: TableOps;
 }) {
   // preventDefault on mousedown keeps the editor's text selection alive.
   const hold = (e: React.MouseEvent) => e.preventDefault();
@@ -196,7 +298,31 @@ function Toolbar({
       <Divider />
       <FontMenu font={font} onFontChange={onFontChange} />
       <SizeMenu size={size} onSizeChange={onSizeChange} />
+
+      {/* Table controls — only while the caret is inside a table. */}
+      {inTable && (
+        <>
+          <Divider />
+          <TableBtn onMouseDown={hold} onClick={tableOps.addRow} title="Add row below"><Rows3 size={14} /><span className="text-accent-primary">+</span></TableBtn>
+          <TableBtn onMouseDown={hold} onClick={tableOps.deleteRow} title="Delete row"><Rows3 size={14} /><span className="text-accent-terracotta">−</span></TableBtn>
+          <TableBtn onMouseDown={hold} onClick={tableOps.addColumn} title="Add column right"><Columns3 size={14} /><span className="text-accent-primary">+</span></TableBtn>
+          <TableBtn onMouseDown={hold} onClick={tableOps.deleteColumn} title="Delete column"><Columns3 size={14} /><span className="text-accent-terracotta">−</span></TableBtn>
+          <Btn onMouseDown={hold} onClick={tableOps.deleteTable} title="Delete table"><Trash2 size={15} /></Btn>
+        </>
+      )}
     </div>
+  );
+}
+
+/** A table control: an icon paired with a +/− affordance. */
+function TableBtn({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...rest}
+      className="flex h-8 items-center gap-0.5 rounded-DEFAULT px-1.5 text-text-bone transition-colors hover:bg-background-tertiary hover:text-accent-primary"
+    >
+      {children}
+    </button>
   );
 }
 
