@@ -383,6 +383,18 @@ export class VaultConnection {
       const shared = await deriveSharedKey(this.localKeyPair.privateKey, theirPub);
       this.peerKeys.set(senderId, shared);
 
+      // Receiving a peer's public key proves they're online RIGHT NOW. The last
+      // peer to join never gets a `peer_joined` event (the server broadcasts it to
+      // everyone *except* the joiner), so its peerCount would stay 0 — which made
+      // sendMessage wrongly route live messages through the X3DH offline path, and
+      // the recipient (with no matching prekey) silently dropped them: typing
+      // showed but messages never arrived. A completed live handshake means we
+      // must use the reliable session key, so reflect presence here.
+      if (!this.isGroup && this.peerCount === 0) {
+        this.peerCount = 1;
+        this.cb.onPresence(this.peerCount, true);
+      }
+
       const fingerprint = await generateFingerprint(shared);
       const announced = typeof env.displayName === "string" ? env.displayName.trim() : "";
       const name = announced || `Contact ${senderId.slice(0, 4)}`;

@@ -153,6 +153,38 @@ body {
   font-weight: 700;
 }
 
+/* Tables — tactile, ash-bordered, with a tinted header row. Cells are editable
+   inline; Tab moves between them and appends rows past the last cell. */
+.rte table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75em 0;
+  font-size: 0.95em;
+  table-layout: fixed;
+}
+.rte th,
+.rte td {
+  border: 1px solid var(--border-ash, #3e3730);
+  padding: 0.5em 0.7em;
+  text-align: left;
+  vertical-align: top;
+  min-width: 2em;
+  word-break: break-word;
+}
+.rte th {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ede6db;
+  font-weight: 600;
+}
+.rte td:focus,
+.rte th:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+.rte tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
 /* Print protection — the covert layer is never captured in print / PDF */
 @media print {
   .vault-content,

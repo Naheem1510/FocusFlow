@@ -11,6 +11,17 @@ export function todayISO(): string {
   return toISODate(new Date());
 }
 
+/** Full, human date + time, e.g. "29 Jun 2026, 14:32". */
+export function formatDateTime(ts: number): string {
+  return new Date(ts).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function fromISODate(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);

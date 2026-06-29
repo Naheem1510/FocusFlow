@@ -16,6 +16,8 @@ import {
   FilePlus,
   List,
   Waypoints,
+  Clock,
+  PencilLine,
 } from "lucide-react";
 import {
   useNotesStore,
@@ -26,6 +28,7 @@ import {
 import { RichTextEditor } from "./RichTextEditor";
 import { NotesGraph } from "./NotesGraph";
 import { htmlToText } from "@/lib/text";
+import { formatDateTime } from "@/lib/date";
 import { cn } from "@/lib/cn";
 
 type NotesView = "list" | "graph";
@@ -80,6 +83,7 @@ export function Notes() {
   const [folder, setFolder] = useState("All Notes");
   const [query, setQuery] = useState("");
   const [tagInput, setTagInput] = useState("");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const [view, setView] = useState<NotesView>("list");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["n-seed-1"]));
   // On phones the list and editor are separate panes; this tracks which is shown.
@@ -87,6 +91,23 @@ export function Notes() {
 
   const active = notes.find((n) => n.id === activeId) ?? null;
   const isSearching = query.trim().length > 0;
+  // Either searching or a tag filter collapses the tree into a flat result list.
+  const isFiltering = isSearching || activeTag !== null;
+
+  // Every distinct tag in use, with its tone and how many notes carry it — the
+  // backbone of the tag filter bar. Sorted most-used first.
+  const allTags = (() => {
+    const map = new Map<string, { tone: TagTone; count: number }>();
+    for (const n of notes)
+      for (const t of n.tags) {
+        const e = map.get(t.label);
+        if (e) e.count++;
+        else map.set(t.label, { tone: t.tone, count: 1 });
+      }
+    return Array.from(map.entries())
+      .map(([label, v]) => ({ label, ...v }))
+      .sort((a, b) => b.count - a.count);
+  })();
 
   // Open a note and, on mobile, switch to the editor pane.
   const openNote = (id: string) => {
@@ -94,10 +115,18 @@ export function Notes() {
     setMobilePane("editor");
   };
 
+  // Click a tag anywhere → filter the list by it (and jump back to the list on mobile).
+  const filterByTag = (label: string) => {
+    setActiveTag((cur) => (cur === label ? null : label));
+    setQuery("");
+    setMobilePane("list");
+  };
+
   const inFolder = (n: Note) => folder === "All Notes" || n.folder === folder;
   const matchesQuery = (n: Note) =>
     n.title.toLowerCase().includes(query.toLowerCase()) ||
     htmlToText(n.body).toLowerCase().includes(query.toLowerCase());
+  const hasTag = (n: Note) => activeTag === null || n.tags.some((t) => t.label === activeTag);
 
   const childrenOf = (parentId: string | null) =>
     notes.filter((n) => n.parentId === parentId).sort((a, b) => b.updatedAt - a.updatedAt);
@@ -105,6 +134,7 @@ export function Notes() {
   const searchResults = notes
     .filter(inFolder)
     .filter(matchesQuery)
+    .filter(hasTag)
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
   const toggleExpand = (id: string) =>
@@ -211,11 +241,42 @@ export function Notes() {
               </button>
             ))}
           </div>
+
+          {/* Tag filter — click a tag to show only notes carrying it. */}
+          {allTags.length > 0 && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <TagIcon size={11} className="text-text-stone" />
+              {allTags.map((t) => (
+                <button
+                  key={t.label}
+                  onClick={() => filterByTag(t.label)}
+                  className={cn(
+                    "flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[11px] transition-colors",
+                    activeTag === t.label
+                      ? TAG_TONE[t.tone] + " ring-1 ring-inset ring-current"
+                      : "border-border-ash text-text-bone hover:text-text-parchment",
+                  )}
+                >
+                  {t.label}
+                  <span className="font-mono text-[9px] opacity-60">{t.count}</span>
+                </button>
+              ))}
+              {activeTag && (
+                <button
+                  onClick={() => setActiveTag(null)}
+                  className="flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] text-text-stone hover:text-accent-terracotta"
+                  title="Clear tag filter"
+                >
+                  <X size={11} /> Clear
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="custom-scrollbar flex-1 overflow-y-auto py-1">
-          {isSearching ? (
-            // Flat results while searching.
+          {isFiltering ? (
+            // Flat results while searching or filtering by a tag.
             <>
               {searchResults.length === 0 && (
                 <p className="p-6 text-center font-mono text-xs text-text-stone">No matches.</p>
@@ -335,8 +396,14 @@ export function Notes() {
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {active.tags.map((t) => (
                 <span key={t.label} className={cn("flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs", TAG_TONE[t.tone])}>
-                  <TagIcon size={11} /> {t.label}
-                  <button onClick={() => removeTag(active.id, t.label)}>
+                  <button
+                    onClick={() => filterByTag(t.label)}
+                    className="flex items-center gap-1 hover:underline"
+                    title={`Show all notes tagged "${t.label}"`}
+                  >
+                    <TagIcon size={11} /> {t.label}
+                  </button>
+                  <button onClick={() => removeTag(active.id, t.label)} title="Remove tag">
                     <X size={11} className="cursor-pointer opacity-60 hover:opacity-100" />
                   </button>
                 </span>
@@ -404,6 +471,16 @@ export function Notes() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Created / last-edited metadata */}
+            <div className="mt-8 flex flex-col gap-1 border-t border-border-ash pt-4 font-mono text-[11px] text-text-stone">
+              <span className="flex items-center gap-1.5">
+                <Clock size={11} /> Created {formatDateTime(active.createdAt)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <PencilLine size={11} /> Last edited {formatDateTime(active.updatedAt)}
+              </span>
             </div>
           </div>
         </motion.div>

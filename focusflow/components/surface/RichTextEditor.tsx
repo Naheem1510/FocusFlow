@@ -15,6 +15,7 @@ import {
   Eraser,
   Type,
   ChevronDown,
+  Table as TableIcon,
 } from "lucide-react";
 import type { NoteFont, NoteSize } from "@/store/useNotesStore";
 import { cn } from "@/lib/cn";
@@ -71,6 +72,49 @@ export function RichTextEditor({
     save();
   };
 
+  // Insert an editable table (rows × cols) at the caret. Cells are contentEditable
+  // by virtue of living inside the editor, so you can click any cell and type.
+  const insertTable = (rows = 3, cols = 3) => {
+    ref.current?.focus();
+    const head =
+      "<tr>" + Array.from({ length: cols }, (_, i) => `<th>Column ${i + 1}</th>`).join("") + "</tr>";
+    const bodyRow = "<tr>" + "<td><br></td>".repeat(cols) + "</tr>";
+    const html =
+      `<table><thead>${head}</thead><tbody>${bodyRow.repeat(rows - 1)}</tbody></table><p><br></p>`;
+    document.execCommand("insertHTML", false, html);
+    save();
+  };
+
+  // Tab navigation inside tables: move to the next cell, and append a new row when
+  // tabbing out of the last cell — so a table is quick to fill in from the keyboard.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+    const sel = window.getSelection();
+    const node = sel?.anchorNode as HTMLElement | null;
+    const cell = (node?.nodeType === 1 ? node : node?.parentElement)?.closest("td,th") as
+      | HTMLTableCellElement
+      | null;
+    if (!cell) return; // not in a table — let Tab behave normally
+    e.preventDefault();
+
+    const cells = Array.from(cell.closest("table")!.querySelectorAll("td,th"));
+    const idx = cells.indexOf(cell);
+    const next = cells[idx + (e.shiftKey ? -1 : 1)] as HTMLElement | undefined;
+
+    if (next) {
+      placeCaret(next);
+    } else if (!e.shiftKey) {
+      // Past the last cell → append a fresh row and jump into its first cell.
+      const tbody = cell.closest("table")!.querySelector("tbody") ?? cell.closest("table")!;
+      const colCount = cell.closest("tr")!.children.length;
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td><br></td>".repeat(colCount);
+      tbody.appendChild(tr);
+      placeCaret(tr.firstElementChild as HTMLElement);
+      save();
+    }
+  };
+
   return (
     <div>
       <Toolbar
@@ -79,12 +123,14 @@ export function RichTextEditor({
         onFontChange={onFontChange}
         onSizeChange={onSizeChange}
         exec={exec}
+        onInsertTable={insertTable}
       />
       <div
         ref={ref}
         contentEditable
         suppressContentEditableWarning
         onInput={save}
+        onKeyDown={onKeyDown}
         data-placeholder="Start writing…"
         className={cn(
           "rte custom-scrollbar mt-5 min-h-[45vh] w-full bg-transparent text-text-parchment/90 outline-none",
@@ -96,18 +142,31 @@ export function RichTextEditor({
   );
 }
 
+/** Places the caret at the start of a cell's content. */
+function placeCaret(cell: HTMLElement) {
+  const range = document.createRange();
+  range.selectNodeContents(cell);
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+  (cell.closest("[contenteditable]") as HTMLElement | null)?.focus();
+}
+
 function Toolbar({
   font,
   size,
   onFontChange,
   onSizeChange,
   exec,
+  onInsertTable,
 }: {
   font: NoteFont;
   size: NoteSize;
   onFontChange: (f: NoteFont) => void;
   onSizeChange: (s: NoteSize) => void;
   exec: (cmd: string, value?: string) => void;
+  onInsertTable: (rows?: number, cols?: number) => void;
 }) {
   // preventDefault on mousedown keeps the editor's text selection alive.
   const hold = (e: React.MouseEvent) => e.preventDefault();
@@ -127,6 +186,7 @@ function Toolbar({
       <Divider />
       <Btn onMouseDown={hold} onClick={() => exec("insertUnorderedList")} title="Bullet list"><List size={15} /></Btn>
       <Btn onMouseDown={hold} onClick={() => exec("insertOrderedList")} title="Numbered list"><ListOrdered size={15} /></Btn>
+      <Btn onMouseDown={hold} onClick={() => onInsertTable(3, 3)} title="Insert table (Tab to move / add rows)"><TableIcon size={15} /></Btn>
 
       <Divider />
       <Btn onMouseDown={hold} onClick={() => exec("hiliteColor", "rgba(212,168,67,0.35)")} title="Highlight"><Highlighter size={15} /></Btn>
