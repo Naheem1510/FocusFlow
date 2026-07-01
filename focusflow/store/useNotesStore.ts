@@ -45,6 +45,12 @@ interface NotesState {
   addTag: (id: string, tag: Tag) => void;
   removeTag: (id: string, label: string) => void;
   addFolder: (name: string) => void;
+  /** Rename a folder, updating every note that lives in it. Returns the final
+   *  name (unchanged if the new name is empty or already taken). */
+  renameFolder: (oldName: string, newName: string) => string;
+  /** Delete a folder and move its notes into a fallback folder. No-op on the
+   *  last remaining folder. */
+  removeFolder: (name: string) => void;
   /** Create a note with a given title (used by [[wiki-links]]); returns its id.
    *  Unlike createNote it does NOT change the active note. */
   createNamedNote: (title: string, folder?: string) => string;
@@ -234,6 +240,30 @@ export const useNotesStore = create<NotesState>()(
         if (!trimmed || get().folders.includes(trimmed)) return;
         set((s) => ({ folders: [...s.folders, trimmed] }));
       },
+
+      renameFolder: (oldName, newName) => {
+        const trimmed = newName.trim();
+        const { folders } = get();
+        if (!trimmed || trimmed === oldName) return oldName;
+        // If the target name already exists, keep the old name (avoid merging).
+        if (folders.includes(trimmed)) return oldName;
+        set((s) => ({
+          folders: s.folders.map((f) => (f === oldName ? trimmed : f)),
+          notes: s.notes.map((n) => (n.folder === oldName ? { ...n, folder: trimmed } : n)),
+        }));
+        return trimmed;
+      },
+
+      removeFolder: (name) =>
+        set((s) => {
+          if (s.folders.length <= 1) return s; // keep at least one folder
+          const remaining = s.folders.filter((f) => f !== name);
+          const fallback = remaining[0];
+          return {
+            folders: remaining,
+            notes: s.notes.map((n) => (n.folder === name ? { ...n, folder: fallback } : n)),
+          };
+        }),
 
       createNamedNote: (title, folder = "Workshop") => {
         const id = uid("n-");

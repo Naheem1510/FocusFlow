@@ -19,6 +19,7 @@ import {
   Clock,
   PencilLine,
   Link as LinkIcon,
+  Check,
 } from "lucide-react";
 import {
   useNotesStore,
@@ -79,12 +80,30 @@ const TAG_TONE: Record<TagTone, string> = {
 const TONE_CYCLE: TagTone[] = ["design", "dev", "ops", "personal"];
 
 export function Notes() {
-  const { notes, folders, activeId, createNote, createNamedNote, updateNote, deleteNote, setActive, addTag, removeTag } =
-    useNotesStore();
+  const {
+    notes,
+    folders,
+    activeId,
+    createNote,
+    createNamedNote,
+    updateNote,
+    deleteNote,
+    setActive,
+    addTag,
+    removeTag,
+    addFolder,
+    renameFolder,
+    removeFolder,
+  } = useNotesStore();
 
   const [folder, setFolder] = useState("All Notes");
   const [query, setQuery] = useState("");
   const [tagInput, setTagInput] = useState("");
+  // Folder editing (add / rename / delete).
+  const [addingFolder, setAddingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [editingFolder, setEditingFolder] = useState<string | null>(null);
+  const [editFolderName, setEditFolderName] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [view, setView] = useState<NotesView>("list");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["n-seed-1"]));
@@ -165,6 +184,38 @@ export function Notes() {
     setTagInput("");
   };
 
+  // ── Folder editing ──────────────────────────────────────────────────────────
+  const commitAddFolder = () => {
+    const name = newFolderName.trim();
+    if (name) {
+      addFolder(name);
+      setFolder(name);
+    }
+    setNewFolderName("");
+    setAddingFolder(false);
+  };
+
+  const startRenameFolder = (f: string) => {
+    setEditingFolder(f);
+    setEditFolderName(f);
+  };
+
+  const commitRenameFolder = () => {
+    if (!editingFolder) return;
+    const finalName = renameFolder(editingFolder, editFolderName);
+    if (folder === editingFolder) setFolder(finalName);
+    setEditingFolder(null);
+  };
+
+  const handleRemoveFolder = (f: string) => {
+    const count = notes.filter((n) => n.folder === f).length;
+    if (count > 0 && !window.confirm(`Delete "${f}"? Its ${count} note${count === 1 ? "" : "s"} will move to another folder.`))
+      return;
+    removeFolder(f);
+    if (folder === f) setFolder("All Notes");
+    setEditingFolder(null);
+  };
+
   if (view === "graph") {
     const edgeCount = notes.filter(
       (n) => n.parentId && notes.some((p) => p.id === n.parentId),
@@ -228,20 +279,108 @@ export function Notes() {
             />
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {["All Notes", ...folders].map((f) => (
+            {/* "All Notes" is the show-everything filter, not an editable folder. */}
+            <button
+              onClick={() => setFolder("All Notes")}
+              className={cn(
+                "flex items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
+                folder === "All Notes"
+                  ? "border-accent-primary bg-accent-soft text-accent-primary"
+                  : "border-border-ash text-text-bone hover:text-text-parchment",
+              )}
+            >
+              <Folder size={11} /> All Notes
+            </button>
+
+            {folders.map((f) =>
+              editingFolder === f ? (
+                <span
+                  key={f}
+                  className="flex items-center gap-1 rounded-full border border-accent-primary bg-background-tertiary px-2 py-0.5"
+                >
+                  <input
+                    autoFocus
+                    value={editFolderName}
+                    onChange={(e) => setEditFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRenameFolder();
+                      if (e.key === "Escape") setEditingFolder(null);
+                    }}
+                    className="w-24 bg-transparent font-mono text-[10px] uppercase tracking-wider text-text-parchment outline-none"
+                  />
+                  <button onClick={commitRenameFolder} title="Save" className="text-accent-primary hover:text-accent-hover">
+                    <Check size={12} />
+                  </button>
+                  {folders.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveFolder(f)}
+                      title="Delete folder"
+                      className="text-text-stone hover:text-accent-terracotta"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  )}
+                </span>
+              ) : (
+                <button
+                  key={f}
+                  onClick={() => setFolder(f)}
+                  onDoubleClick={() => startRenameFolder(f)}
+                  title="Double-click to rename"
+                  className={cn(
+                    "group flex items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
+                    folder === f
+                      ? "border-accent-primary bg-accent-soft text-accent-primary"
+                      : "border-border-ash text-text-bone hover:text-text-parchment",
+                  )}
+                >
+                  <Folder size={11} /> {f}
+                  <PencilLine
+                    size={10}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startRenameFolder(f);
+                    }}
+                    className={cn(
+                      "ml-0.5 opacity-0 transition-opacity hover:text-accent-primary group-hover:opacity-70",
+                      folder === f && "opacity-70",
+                    )}
+                  />
+                </button>
+              ),
+            )}
+
+            {/* Add a new folder */}
+            {addingFolder ? (
+              <span className="flex items-center gap-1 rounded-full border border-accent-primary bg-background-tertiary px-2 py-0.5">
+                <input
+                  autoFocus
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitAddFolder();
+                    if (e.key === "Escape") {
+                      setNewFolderName("");
+                      setAddingFolder(false);
+                    }
+                  }}
+                  onBlur={commitAddFolder}
+                  placeholder="Folder name"
+                  className="w-24 bg-transparent font-mono text-[10px] uppercase tracking-wider text-text-parchment placeholder:text-text-stone outline-none"
+                />
+                <button onClick={commitAddFolder} title="Add" className="text-accent-primary hover:text-accent-hover">
+                  <Check size={12} />
+                </button>
+              </span>
+            ) : (
               <button
-                key={f}
-                onClick={() => setFolder(f)}
-                className={cn(
-                  "flex items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
-                  folder === f
-                    ? "border-accent-primary bg-accent-soft text-accent-primary"
-                    : "border-border-ash text-text-bone hover:text-text-parchment",
-                )}
+                onClick={() => setAddingFolder(true)}
+                title="Add folder"
+                className="flex items-center gap-1 rounded-full border border-dashed border-border-ash px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-text-stone transition-colors hover:border-accent-primary hover:text-accent-primary"
               >
-                <Folder size={11} /> {f}
+                <Plus size={11} /> Folder
               </button>
-            ))}
+            )}
           </div>
 
           {/* Tag filter — click a tag to show only notes carrying it. */}
