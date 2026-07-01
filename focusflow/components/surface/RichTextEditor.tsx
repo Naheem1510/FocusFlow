@@ -19,6 +19,8 @@ import {
   Rows3,
   Columns3,
   Trash2,
+  Plus,
+  Link as LinkIcon,
 } from "lucide-react";
 import type { NoteFont, NoteSize } from "@/store/useNotesStore";
 import { cn } from "@/lib/cn";
@@ -40,6 +42,11 @@ const SIZE_LABEL: Record<NoteSize, string> = { sm: "Small", md: "Normal", lg: "L
 
 const TEXT_COLORS = ["#EDE6DB", "#C4654A", "#7A9E7E", "#D4A843", "#38BEC9"];
 
+export interface LinkTarget {
+  id: string;
+  title: string;
+}
+
 export function RichTextEditor({
   noteId,
   html,
@@ -48,6 +55,9 @@ export function RichTextEditor({
   onChange,
   onFontChange,
   onSizeChange,
+  linkTargets = [],
+  onOpenNote,
+  onCreateNote,
 }: {
   noteId: string;
   html: string;
@@ -56,10 +66,101 @@ export function RichTextEditor({
   onChange: (html: string) => void;
   onFontChange: (f: NoteFont) => void;
   onSizeChange: (s: NoteSize) => void;
+  /** Other notes that can be linked to via the [[ autocomplete. */
+  linkTargets?: LinkTarget[];
+  /** Open a linked note (click on an inline [[link]]). */
+  onOpenNote?: (id: string) => void;
+  /** Create a new note by title (used by "Create …" in the [[ menu). Returns id. */
+  onCreateNote?: (title: string) => string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // True while the caret sits inside a table — reveals the row/column controls.
   const [inTable, setInTable] = useState(false);
+
+  // ── [[ wiki-link ]] autocomplete ────────────────────────────────────────────
+  interface LinkMenu {
+    query: string;
+    top: number;
+    left: number;
+    index: number;
+    items: (LinkTarget & { create?: boolean })[];
+  }
+  const [linkMenu, setLinkMenu] = useState<LinkMenu | null>(null);
+  const linkMenuRef = useRef<LinkMenu | null>(null);
+  linkMenuRef.current = linkMenu;
+
+  const closeLinkMenu = () => setLinkMenu(null);
+
+  // Match a `[[query` immediately before the caret (no closing ]] yet).
+  const linkTriggerBefore = (): { textNode: Text; start: number; query: string } | null => {
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed || !sel.anchorNode || sel.anchorNode.nodeType !== 3) return null;
+    const textNode = sel.anchorNode as Text;
+    if (!ref.current?.contains(textNode)) return null;
+    const offset = sel.anchorOffset;
+    const before = (textNode.textContent ?? "").slice(0, offset);
+    const m = /\[\[([^[\]\n]*)$/.exec(before);
+    if (!m) return null;
+    return { textNode, start: offset - m[0].length, query: m[1] };
+  };
+
+  const refreshLinkMenu = () => {
+    const trig = linkTriggerBefore();
+    if (!trig) {
+      if (linkMenuRef.current) closeLinkMenu();
+      return;
+    }
+    const q = trig.query.trim().toLowerCase();
+    const matches = linkTargets
+      .filter((t) => t.id !== noteId && t.title.toLowerCase().includes(q))
+      .slice(0, 6);
+    const items: (LinkTarget & { create?: boolean })[] = [...matches];
+    // Offer to create a note when the query names one that doesn't exist yet.
+    if (trig.query.trim() && !linkTargets.some((t) => t.title.toLowerCase() === q)) {
+      items.push({ id: "__create__", title: trig.query.trim(), create: true });
+    }
+    if (items.length === 0) {
+      if (linkMenuRef.current) closeLinkMenu();
+      return;
+    }
+    const rect = window.getSelection()!.getRangeAt(0).getBoundingClientRect();
+    setLinkMenu((prev) => ({
+      query: trig.query,
+      top: rect.bottom || rect.top || 0,
+      left: rect.left || 0,
+      index: prev && prev.index < items.length ? prev.index : 0,
+      items,
+    }));
+  };
+
+  const chooseLink = (item: LinkTarget & { create?: boolean }) => {
+    const trig = linkTriggerBefore();
+    if (!trig) return closeLinkMenu();
+    const targetId = item.create ? onCreateNote?.(item.title) : item.id;
+    if (!targetId) return closeLinkMenu();
+
+    // Replace `[[query` with an atomic link anchor + trailing space.
+    const range = document.createRange();
+    range.setStart(trig.textNode, trig.start);
+    range.setEnd(trig.textNode, trig.start + 2 + trig.query.length);
+    range.deleteContents();
+    const a = document.createElement("a");
+    a.setAttribute("data-note", targetId);
+    a.className = "note-link";
+    a.setAttribute("contenteditable", "false");
+    a.textContent = item.title || "Untitled note";
+    range.insertNode(a);
+    const space = document.createTextNode(" ");
+    a.after(space);
+    const after = document.createRange();
+    after.setStartAfter(space);
+    after.collapse(true);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(after);
+    closeLinkMenu();
+    save();
+  };
 
   // Load content only when the note changes — never on each keystroke, or the
   // caret would jump to the start.
@@ -68,13 +169,18 @@ export function RichTextEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
 
-  // Reveal the table controls only when the selection is inside a table cell.
+  // On every selection change: (1) reveal table controls when inside a cell, and
+  // (2) refresh the [[ link autocomplete. Routed through a ref so the listener,
+  // installed once, always runs the latest closure (fresh notes/props).
+  const onSelectionRef = useRef<() => void>(() => {});
+  onSelectionRef.current = () => {
+    const node = window.getSelection()?.anchorNode;
+    const el = node ? (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement) : null;
+    setInTable(!!el?.closest("td,th") && !!ref.current?.contains(el));
+    refreshLinkMenu();
+  };
   useEffect(() => {
-    const onSel = () => {
-      const node = window.getSelection()?.anchorNode;
-      const el = node ? (node.nodeType === 1 ? (node as HTMLElement) : node.parentElement) : null;
-      setInTable(!!el?.closest("td,th") && !!ref.current?.contains(el));
-    };
+    const onSel = () => onSelectionRef.current();
     document.addEventListener("selectionchange", onSel);
     return () => document.removeEventListener("selectionchange", onSel);
   }, []);
@@ -173,9 +279,34 @@ export function RichTextEditor({
     save();
   };
 
-  // Tab navigation inside tables: move to the next cell, and append a new row when
-  // tabbing out of the last cell — so a table is quick to fill in from the keyboard.
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // When the [[ menu is open, arrows/enter/tab/escape drive it.
+    const menu = linkMenuRef.current;
+    if (menu) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setLinkMenu({ ...menu, index: (menu.index + 1) % menu.items.length });
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setLinkMenu({ ...menu, index: (menu.index - 1 + menu.items.length) % menu.items.length });
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        chooseLink(menu.items[menu.index]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeLinkMenu();
+        return;
+      }
+    }
+
+    // Tab navigation inside tables: move to the next cell, and append a new row
+    // when tabbing out of the last cell — so a table fills in from the keyboard.
     if (e.key !== "Tab") return;
     const sel = window.getSelection();
     const node = sel?.anchorNode as HTMLElement | null;
@@ -203,8 +334,18 @@ export function RichTextEditor({
     }
   };
 
+  // Click an inline [[link]] → open that note (links are contenteditable=false).
+  const onClick = (e: React.MouseEvent) => {
+    const a = (e.target as HTMLElement).closest("a.note-link") as HTMLElement | null;
+    const id = a?.getAttribute("data-note");
+    if (id) {
+      e.preventDefault();
+      onOpenNote?.(id);
+    }
+  };
+
   return (
-    <div>
+    <div className="relative">
       <Toolbar
         font={font}
         size={size}
@@ -219,15 +360,57 @@ export function RichTextEditor({
         ref={ref}
         contentEditable
         suppressContentEditableWarning
-        onInput={save}
+        onInput={() => {
+          save();
+          refreshLinkMenu();
+        }}
         onKeyDown={onKeyDown}
-        data-placeholder="Start writing…"
+        onClick={onClick}
+        data-placeholder="Start writing…  ·  type [[ to link a note"
         className={cn(
           "rte custom-scrollbar mt-5 min-h-[45vh] w-full bg-transparent text-text-parchment/90 outline-none",
           FONT_CLASS[font],
           SIZE_CLASS[size],
         )}
       />
+
+      {linkMenu && (
+        <div
+          className="fixed z-50 w-64 overflow-hidden rounded-DEFAULT border border-border-ash bg-background-secondary shadow-2xl"
+          style={{ top: linkMenu.top + 4, left: linkMenu.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <div className="border-b border-border-ash px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-text-stone">
+            Link a note
+          </div>
+          {linkMenu.items.map((it, i) => (
+            <button
+              key={it.id + i}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => chooseLink(it)}
+              onMouseEnter={() => setLinkMenu((m) => (m ? { ...m, index: i } : m))}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+                i === linkMenu.index ? "bg-background-tertiary text-accent-primary" : "text-text-parchment",
+              )}
+            >
+              {it.create ? (
+                <>
+                  <Plus size={14} className="flex-shrink-0" />
+                  <span className="truncate">
+                    Create “<span className="font-medium">{it.title}</span>”
+                  </span>
+                </>
+              ) : (
+                <>
+                  <LinkIcon size={14} className="flex-shrink-0 text-text-stone" />
+                  <span className="truncate">{it.title || "Untitled note"}</span>
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

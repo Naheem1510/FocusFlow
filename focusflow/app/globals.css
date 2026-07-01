@@ -185,6 +185,31 @@ body {
   background: rgba(255, 255, 255, 0.02);
 }
 
+/* Inline [[wiki-links]] — an accent-tinted pill that opens the target note. */
+.rte a.note-link,
+.note-link {
+  color: var(--accent-primary);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0.05em 0.32em;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.rte a.note-link::before {
+  content: "🔗";
+  font-size: 0.75em;
+  margin-right: 0.25em;
+  opacity: 0.6;
+}
+.rte a.note-link:hover,
+.note-link:hover {
+  background: var(--accent-primary);
+  color: #1e1b18;
+}
+
 /* Print protection — the covert layer is never captured in print / PDF */
 @media print {
   .vault-content,

@@ -45,6 +45,45 @@ interface NotesState {
   addTag: (id: string, tag: Tag) => void;
   removeTag: (id: string, label: string) => void;
   addFolder: (name: string) => void;
+  /** Create a note with a given title (used by [[wiki-links]]); returns its id.
+   *  Unlike createNote it does NOT change the active note. */
+  createNamedNote: (title: string, folder?: string) => string;
+}
+
+// ─── Wiki-links ────────────────────────────────────────────────────────────
+//
+// A link is an anchor embedded in a note's HTML body:
+//   <a data-note="<id>" class="note-link">Title</a>
+// These helpers read those links back out to power backlinks + the graph.
+
+/** The HTML for an inline note link. */
+export function noteLinkHtml(id: string, title: string): string {
+  const safe = (title || "Untitled note").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `<a data-note="${id}" class="note-link" contenteditable="false">${safe}</a>`;
+}
+
+/** Note ids referenced from a body's `data-note` anchors (deduped). */
+export function extractLinkIds(html: string): string[] {
+  const out = new Set<string>();
+  const re = /data-note="([^"]+)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) out.add(m[1]);
+  return Array.from(out);
+}
+
+/** Notes that `id`'s body links out to (existing targets only). */
+export function outgoingLinks(notes: Note[], id: string): Note[] {
+  const note = notes.find((n) => n.id === id);
+  if (!note) return [];
+  const byId = new Map(notes.map((n) => [n.id, n]));
+  return extractLinkIds(note.body)
+    .filter((t) => t !== id && byId.has(t))
+    .map((t) => byId.get(t)!);
+}
+
+/** Notes whose body links TO `id` (backlinks / linked references). */
+export function backlinks(notes: Note[], id: string): Note[] {
+  return notes.filter((n) => n.id !== id && extractLinkIds(n.body).includes(id));
 }
 
 /** Returns the id set of a note plus every descendant beneath it. */
@@ -194,6 +233,26 @@ export const useNotesStore = create<NotesState>()(
         const trimmed = name.trim();
         if (!trimmed || get().folders.includes(trimmed)) return;
         set((s) => ({ folders: [...s.folders, trimmed] }));
+      },
+
+      createNamedNote: (title, folder = "Workshop") => {
+        const id = uid("n-");
+        const ts = Date.now();
+        const note: Note = {
+          id,
+          title: title.trim() || "Untitled note",
+          body: "",
+          folder,
+          tags: [],
+          parentId: null,
+          font: "sans",
+          size: "md",
+          createdAt: ts,
+          updatedAt: ts,
+        };
+        // Prepend without stealing focus from the note being edited.
+        set((s) => ({ notes: [note, ...s.notes] }));
+        return id;
       },
     }),
     { name: "focusflow-notes" },

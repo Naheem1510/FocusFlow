@@ -18,10 +18,12 @@ import {
   Waypoints,
   Clock,
   PencilLine,
+  Link as LinkIcon,
 } from "lucide-react";
 import {
   useNotesStore,
   notePath,
+  backlinks,
   type TagTone,
   type Note,
 } from "@/store/useNotesStore";
@@ -77,7 +79,7 @@ const TAG_TONE: Record<TagTone, string> = {
 const TONE_CYCLE: TagTone[] = ["design", "dev", "ops", "personal"];
 
 export function Notes() {
-  const { notes, folders, activeId, createNote, updateNote, deleteNote, setActive, addTag, removeTag } =
+  const { notes, folders, activeId, createNote, createNamedNote, updateNote, deleteNote, setActive, addTag, removeTag } =
     useNotesStore();
 
   const [folder, setFolder] = useState("All Notes");
@@ -430,6 +432,9 @@ export function Notes() {
                 onChange={(body) => updateNote(active.id, { body })}
                 onFontChange={(font) => updateNote(active.id, { font })}
                 onSizeChange={(size) => updateNote(active.id, { size })}
+                linkTargets={notes.map((n) => ({ id: n.id, title: n.title || "Untitled note" }))}
+                onOpenNote={(id) => notes.some((n) => n.id === id) && openNote(id)}
+                onCreateNote={(title) => createNamedNote(title, active.folder)}
               />
             </div>
 
@@ -472,6 +477,41 @@ export function Notes() {
                 ))}
               </div>
             </div>
+
+            {/* Linked references (backlinks) — notes that link to this one. */}
+            {(() => {
+              const refs = backlinks(notes, active.id);
+              if (refs.length === 0) return null;
+              return (
+                <div className="mt-10 border-t border-border-ash pt-6">
+                  <h3 className="mb-3 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-text-bone">
+                    <LinkIcon size={13} /> Linked references
+                    <span className="rounded-full bg-background-tertiary px-1.5 text-[10px] text-text-stone">
+                      {refs.length}
+                    </span>
+                  </h3>
+                  <div className="space-y-1.5">
+                    {refs.map((r) => (
+                      <button
+                        key={r.id}
+                        onClick={() => openNote(r.id)}
+                        className="flex w-full items-start gap-2 rounded-DEFAULT border border-border-ash bg-background-secondary px-3 py-2.5 text-left transition-colors hover:border-accent-primary/50"
+                      >
+                        <FileText size={15} className="mt-0.5 flex-shrink-0 text-accent-primary" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm text-text-parchment">
+                            {r.title || "Untitled note"}
+                          </span>
+                          <span className="line-clamp-1 text-xs text-text-stone">
+                            {htmlToText(r.body) || "No additional text"}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Created / last-edited metadata */}
             <div className="mt-8 flex flex-col gap-1 border-t border-border-ash pt-4 font-mono text-[11px] text-text-stone">

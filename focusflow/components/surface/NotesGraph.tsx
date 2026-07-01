@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ZoomIn, ZoomOut, Maximize2, Share2 } from "lucide-react";
-import { useNotesStore } from "@/store/useNotesStore";
+import { useNotesStore, extractLinkIds } from "@/store/useNotesStore";
 import { ACCENTS, useSettingsStore } from "@/store/useSettingsStore";
 import { cn } from "@/lib/cn";
 
@@ -146,14 +146,26 @@ export function NotesGraph({
       if (!adj.has(a)) adj.set(a, new Set());
       adj.get(a)!.add(b);
     };
+    const seen = new Set<string>(); // dedupe edges by unordered pair
+    const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+    const addEdge = (aId: string, bId: string) => {
+      if (aId === bId || !next.has(aId) || !next.has(bId)) return;
+      const key = pairKey(aId, bId);
+      if (seen.has(key)) return;
+      seen.add(key);
+      edges.push({ a: next.get(aId)!, b: next.get(bId)! });
+      link(aId, bId);
+      link(bId, aId);
+    };
+
+    // Hierarchy edges (parent → child)…
     notes.forEach((n) => {
-      if (n.parentId && next.has(n.parentId)) {
-        const a = next.get(n.parentId)!;
-        const b = next.get(n.id)!;
-        edges.push({ a, b });
-        link(a.id, b.id);
-        link(b.id, a.id);
-      }
+      if (n.parentId) addEdge(n.parentId, n.id);
+    });
+    // …plus real [[wiki-links]] between notes, so the graph maps connections,
+    // not just nesting.
+    notes.forEach((n) => {
+      for (const targetId of extractLinkIds(n.body)) addEdge(n.id, targetId);
     });
 
     next.forEach((node) => {
@@ -621,9 +633,16 @@ export function NotesGraph({
   };
 
   const hasNotes = notes.length > 0;
-  const linkCount = notes.filter(
-    (n) => n.parentId && notes.some((p) => p.id === n.parentId),
-  ).length;
+  // Total unique connections: hierarchy edges + [[wiki-links]] (deduped by pair).
+  const linkCount = (() => {
+    const ids = new Set(notes.map((n) => n.id));
+    const seen = new Set<string>();
+    const key = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+    for (const n of notes) if (n.parentId && ids.has(n.parentId)) seen.add(key(n.id, n.parentId));
+    for (const n of notes)
+      for (const t of extractLinkIds(n.body)) if (t !== n.id && ids.has(t)) seen.add(key(n.id, t));
+    return seen.size;
+  })();
 
   return (
     <div
